@@ -1,8 +1,11 @@
 {
-  "apiKey": "AIzaSyBXAXB3On3WwWPwvbb7TkyR892pR2nDkko",
-  "authDomain": "test-manga-keeper.firebaseapp.com",
-  "projectId": "test-manga-keeper",
-  "storageBucket": "test-manga-keeper.firebasestorage.app",
-  "messagingSenderId": "1082600273984",
-  "appId": "1:1082600273984:web:2f247ff8588acf797607a5"
+  "projectId": "psyched-accumulator-vn50x",
+  "appId": "1:946045724916:web:805986f3b6517167f6d6a1",
+  "apiKey": "AIzaSyANDxP16aRS1cyaBhWMPu8Im4DJoxyVVNw",
+  "authDomain": "psyched-accumulator-vn50x.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-copyofqunlmuatru-518e5f9c-599f-4d8b-b2e0-7bb1a33dc186",
+  "storageBucket": "psyched-accumulator-vn50x.firebasestorage.app",
+  "messagingSenderId": "946045724916",
+  "measurementId": "",
+  "oAuthClientId": "946045724916-a5mnu0bp050om7q2mdljod2nr03j31ri.apps.googleusercontent.com"
 }
