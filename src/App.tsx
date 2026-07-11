@@ -298,27 +298,7 @@ export default function App() {
             onRefreshStats={() => loadAllData(userId)} 
           />
 
-          {/* Quick tips & suggestions */}
-          <div className="bento-card bg-slate-900/30 border border-slate-850 rounded-3xl p-5 space-y-3 shadow-md">
-            <h4 className="font-bold text-slate-200 text-xs flex items-center gap-1.5 border-b border-slate-800/40 pb-2">
-              <Info className="w-4 h-4 text-indigo-400" />
-              Mẹo mua truyện thông minh
-            </h4>
-            <ul className="text-[11px] text-slate-400 space-y-2.5 leading-relaxed list-inside">
-              <li className="flex items-start gap-1.5">
-                <span className="text-indigo-400 mt-1 flex-shrink-0">•</span>
-                <span>Lên kế hoạch trước bằng cách thêm tập truyện với ngày phát hành dự kiến từ NXB để nhận thông báo cuối tuần/tháng.</span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <span className="text-indigo-400 mt-1 flex-shrink-0">•</span>
-                <span>Chụp hình gáy truyện hoặc hóa đơn mua trực tiếp từ điện thoại để lưu giữ hình ảnh trực quan nhất.</span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <span className="text-indigo-400 mt-1 flex-shrink-0">•</span>
-                <span>Sử dụng chức năng **Thêm nhanh** trong bộ truyện khi bạn gom mua cùng lúc nhiều tập.</span>
-              </li>
-            </ul>
-          </div>
+
 
         </section>
 
