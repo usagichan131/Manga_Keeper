@@ -1,29 +1,56 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Check if the user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidSeries(data) {
+      return data.keys().hasAll(['id', 'name', 'status', 'userId', 'createdAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 500 &&
+             data.status in ['ongoing', 'completed', 'on_hold', 'dropped'] &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.createdAt is number &&
+             (!('author' in data) || (data.author is string && data.author.size() <= 500)) &&
+             (!('publisher' in data) || (data.publisher is string && data.publisher.size() <= 500)) &&
+             (!('coverUrl' in data) || (data.coverUrl is string && data.coverUrl.size() <= 1000)) &&
+             (!('totalVolumes' in data) || data.totalVolumes is number);
+    }
+
+    function isValidVolume(data) {
+      return data.keys().hasAll(['id', 'seriesId', 'volumeNumber', 'status', 'createdAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.seriesId is string && data.seriesId.size() <= 128 &&
+             data.volumeNumber is number &&
+             data.status in ['owned', 'wishlist'] &&
+             data.createdAt is number &&
+             (!('purchaseDate' in data) || (data.purchaseDate is string && data.purchaseDate.size() <= 128)) &&
+             (!('purchaseSource' in data) || (data.purchaseSource is string && data.purchaseSource.size() <= 500)) &&
+             (!('price' in data) || data.price is number) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+             (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 1000)) &&
+             (!('releaseDate' in data) || (data.releaseDate is string && data.releaseDate.size() <= 128));
     }
 
     match /series/{seriesId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read: if true; 
+      allow create: if isValidId(seriesId) && isValidSeries(incoming());
+      allow update: if isValidId(seriesId) && isValidSeries(incoming());
+      allow delete: if isValidId(seriesId);
     }
 
     match /volumes/{volumeId} {
-      // Volumes don't inherently have userId stored on them in the model (only seriesId).
-      // Since it's a simple app, we can either allow read/write if authenticated and we trust client filtering,
-      // or we just allow authenticated users.
-      // Looking at src/types.ts and db.ts, volumes have `seriesId`.
-      // To strictly secure volumes, we'd need to verify the series it belongs to, but Firestore rules
-      // don't easily do a get() on another document for list queries without being careful.
-      // For now, ensuring authentication is a start.
-      // Wait, can we just allow authenticated users for this simple app?
-      allow read, write: if isAuthenticated();
+      allow read: if true;
+      allow create: if isValidId(volumeId) && isValidVolume(incoming());
+      allow update: if isValidId(volumeId) && isValidVolume(incoming());
+      allow delete: if isValidId(volumeId);
     }
   }
 }
