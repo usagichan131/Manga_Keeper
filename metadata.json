@@ -1,0 +1,10 @@
+{
+  "name": "Copy of Quản Lý Mua Truyện Tranh",
+  "description": "Ứng dụng quản lý mua truyện tranh, theo dõi các tập đã có, thống kê chi tiêu, lên lịch ngày phát hành và chụp ảnh bìa/hóa đơn.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

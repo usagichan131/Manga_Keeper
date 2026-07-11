@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "Series": {
+      "title": "Series",
+      "description": "Manga series information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "author": { "type": "string" },
+        "publisher": { "type": "string" },
+        "status": { "type": "string", "enum": ["ongoing", "completed", "on_hold", "dropped"] },
+        "coverUrl": { "type": "string" },
+        "totalVolumes": { "type": "number" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "name", "status", "userId", "createdAt"]
+    },
+    "Volume": {
+      "title": "Volume",
+      "description": "Individual volume information of a manga series",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "seriesId": { "type": "string" },
+        "volumeNumber": { "type": "number" },
+        "status": { "type": "string", "enum": ["owned", "wishlist"] },
+        "purchaseDate": { "type": "string" },
+        "purchaseSource": { "type": "string" },
+        "price": { "type": "number" },
+        "notes": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "releaseDate": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "seriesId", "volumeNumber", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "series": {
+      "schema": "Series",
+      "description": "Collection of manga series"
+    },
+    "volumes": {
+      "schema": "Volume",
+      "description": "Collection of individual manga volumes"
+    }
+  }
+}
