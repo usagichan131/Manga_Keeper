@@ -2,7 +2,7 @@
   "apiKey": "AIzaSyBXAXB3On3WwWPwvbb7TkyR892pR2nDkko",
   "authDomain": "test-manga-keeper.firebaseapp.com",
   "projectId": "test-manga-keeper",
-  "storageBucket": "psyched-accumulator-vn50x.firebasestorage.app",
+  "storageBucket": "test-manga-keeper.firebasestorage.app",
   "messagingSenderId": "1082600273984",
   "appId": "1:1082600273984:web:2f247ff8588acf797607a5"
 }
