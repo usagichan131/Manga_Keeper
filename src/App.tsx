@@ -1,17 +1,20 @@
 import { useState, useEffect } from "react";
 import { 
   BookOpen, Plus, Search, Filter, BookMarked, DollarSign, RefreshCw, 
-  Settings, Key, Copy, Check, Info, Sparkles, HelpCircle 
+  Settings, Key, Copy, Check, Info, Sparkles, HelpCircle, LogOut 
 } from "lucide-react";
 import { Series, Volume } from "./types";
 import { getOrCreateUserId, getSeriesList, addSeries, getVolumes } from "./lib/db";
 import AddSeriesModal from "./components/AddSeriesModal";
 import SeriesDashboard from "./components/SeriesDashboard";
 import UpcomingReleases from "./components/UpcomingReleases";
-import { isFirebasePlaceholder } from "./firebase";
+import LoginScreen from "./components/LoginScreen";
+import { auth, isFirebasePlaceholder } from "./firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 export default function App() {
-  const [userId, setUserId] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [authInitialized, setAuthInitialized] = useState(false);
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [globalVolumes, setGlobalVolumes] = useState<Volume[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,16 +29,32 @@ export default function App() {
   
   // Backup & sync code states
   const [showSettings, setShowSettings] = useState(false);
-  const [syncCodeInput, setSyncCodeInput] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [syncSuccessMsg, setSyncSuccessMsg] = useState("");
   const [showOfflineBanner, setShowOfflineBanner] = useState(isFirebasePlaceholder);
 
   // Initialize and load
   useEffect(() => {
-    const id = getOrCreateUserId();
-    setUserId(id);
-    loadAllData(id);
+    if (isFirebasePlaceholder) {
+      // Offline fallback
+      const id = getOrCreateUserId();
+      setUserId(id);
+      setAuthInitialized(true);
+      loadAllData(id);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+        loadAllData(user.uid);
+      } else {
+        setUserId(null);
+        setSeriesList([]);
+        setGlobalVolumes([]);
+      }
+      setAuthInitialized(true);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const loadAllData = async (uid: string) => {
@@ -64,6 +83,7 @@ export default function App() {
   };
 
   const handleCreateSeries = async (newSeriesData: Omit<Series, "id" | "userId" | "createdAt">) => {
+    if (!userId) return;
     try {
       const created = await addSeries({
         ...newSeriesData,
@@ -78,27 +98,23 @@ export default function App() {
     }
   };
 
-  const handleCopySyncCode = () => {
-    navigator.clipboard.writeText(userId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleLogout = async () => {
+    if (!isFirebasePlaceholder && auth) {
+      await signOut(auth);
+    }
   };
 
-  const handleApplySyncCode = () => {
-    if (!syncCodeInput.trim() || !syncCodeInput.startsWith("user_")) {
-      alert("Mã đồng bộ không hợp lệ. Mã đồng bộ phải bắt đầu bằng 'user_'");
-      return;
-    }
-    
-    if (confirm("LƯU Ý: Chuyển sang mã đồng bộ mới sẽ thay thế dữ liệu hiện tại trên trình duyệt này. Bạn có chắc chắn muốn tiếp tục?")) {
-      localStorage.setItem("comic_tracker_user_id", syncCodeInput.trim());
-      setUserId(syncCodeInput.trim());
-      loadAllData(syncCodeInput.trim());
-      setSyncSuccessMsg("Đã tải dữ liệu từ mã đồng bộ thành công!");
-      setSyncCodeInput("");
-      setTimeout(() => setSyncSuccessMsg(""), 3000);
-    }
-  };
+  if (!authInitialized) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-slate-700 border-t-indigo-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    return <LoginScreen />;
+  }
 
   // Calculations
   const totalMoneySpent = globalVolumes
@@ -198,10 +214,10 @@ export default function App() {
               <button
                 onClick={() => setShowSettings(!showSettings)}
                 className="py-2 px-3.5 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800/80 rounded-xl text-xs font-semibold text-slate-300 hover:text-white transition-all duration-200 flex items-center gap-1.5 shadow-md"
-                title="Đồng bộ & Sao lưu dữ liệu"
+                title="Tài khoản"
               >
                 <Settings className={`w-4 h-4 text-slate-400 transition-transform duration-500 ${showSettings ? "rotate-90 text-indigo-400" : ""}`} />
-                <span>Đồng bộ</span>
+                <span>Tài khoản</span>
               </button>
 
               <button
@@ -230,7 +246,7 @@ export default function App() {
               <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
                 <h4 className="font-bold text-slate-200 text-xs flex items-center gap-1.5">
                   <Key className="w-4 h-4 text-indigo-400" />
-                  Sao lưu đám mây (Miễn phí)
+                  Tài khoản của bạn
                 </h4>
                 <button 
                   onClick={() => setShowSettings(false)}
@@ -240,53 +256,21 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="text-[11px] text-slate-400 space-y-2.5 leading-relaxed">
-                <p>
-                  Mọi dữ liệu của bạn được lưu trữ hoàn toàn miễn phí trên cơ sở dữ liệu đám mây <strong className="text-slate-200 font-semibold">Firebase Firestore</strong>.
-                </p>
-                <p>
-                  Để truy cập dữ liệu của bạn trên các thiết bị khác (điện thoại, máy tính bảng...), hãy copy và dán <strong className="text-indigo-400 font-semibold">Mã đồng bộ</strong> bên dưới.
-                </p>
-              </div>
-
-              {/* Your Code Copy Box */}
               <div className="bg-slate-950/80 p-3 rounded-2xl border border-slate-900 flex flex-col gap-2 shadow-inner">
-                <span className="text-[9px] text-slate-500 uppercase font-extrabold tracking-widest font-mono">Mã đồng bộ của bạn:</span>
+                <span className="text-[9px] text-slate-500 uppercase font-extrabold tracking-widest font-mono">User ID:</span>
                 <div className="flex items-center justify-between gap-2 bg-slate-900/40 p-1 rounded-lg border border-white/5">
                   <code className="text-xs font-mono text-indigo-300 truncate select-all pl-2">{userId}</code>
-                  <button
-                    onClick={handleCopySyncCode}
-                    className="p-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-lg hover:text-white transition-all flex-shrink-0 border border-white/5"
-                    title="Sao chép mã"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
                 </div>
               </div>
 
-              {/* Restore / Import Sync Code Box */}
-              <div className="space-y-2.5 pt-3.5 border-t border-slate-800/60">
-                <span className="text-[9px] text-slate-500 uppercase font-extrabold tracking-widest block font-mono">Đồng bộ từ thiết bị khác:</span>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Nhập mã 'user_...'"
-                    value={syncCodeInput}
-                    onChange={(e) => setSyncCodeInput(e.target.value)}
-                    className="flex-1 bg-slate-950/80 border border-slate-900 rounded-xl py-2 px-3 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all font-mono"
-                  />
-                  <button
-                    onClick={handleApplySyncCode}
-                    className="py-2 px-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 border border-indigo-500/20"
-                  >
-                    Kết nối
-                  </button>
-                </div>
-                {syncSuccessMsg && (
-                  <p className="text-emerald-400 text-[11px] text-center font-semibold mt-1">
-                    {syncSuccessMsg}
-                  </p>
-                )}
+              <div className="pt-2">
+                <button
+                  onClick={handleLogout}
+                  className="w-full py-2.5 px-4 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded-xl text-xs font-bold transition-all border border-red-900/50 flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Đăng xuất
+                </button>
               </div>
             </div>
           )}
