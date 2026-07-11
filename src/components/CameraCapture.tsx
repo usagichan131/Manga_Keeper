@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, Image as ImageIcon, RefreshCw, Check, X, SwitchCamera } from "lucide-react";
+import { Camera, Image as ImageIcon, RefreshCw, Check, X, SwitchCamera, Link } from "lucide-react";
 import { compressImage } from "../lib/image";
 
 interface CameraCaptureProps {
@@ -256,6 +256,21 @@ export default function CameraCapture({ onCapture, onClose, initialImage, title 
               <ImageIcon className="w-4 h-4 text-slate-400" />
               Chọn từ máy
             </button>
+          </div>
+
+          <div className="flex items-center gap-2 bg-slate-900/80 border border-white/10 rounded-xl px-3 py-1.5 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
+            <Link className="w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Dán link ảnh vào đây..."
+              className="flex-1 bg-transparent border-none text-xs text-slate-200 placeholder-slate-600 focus:outline-none"
+              onChange={(e) => {
+                if (e.target.value) {
+                  stopCamera();
+                  setPreviewImage(e.target.value);
+                }
+              }}
+            />
           </div>
 
           <input 
