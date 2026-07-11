@@ -1,8 +1,8 @@
 {
-  apiKey: "AIzaSyBXAXB3On3WwWPwvbb7TkyR892pR2nDkko",
-  authDomain: "test-manga-keeper.firebaseapp.com",
-  projectId: "test-manga-keeper",
-  storageBucket: "test-manga-keeper.firebasestorage.app",
-  messagingSenderId: "1082600273984",
-  appId: "1:1082600273984:web:2f247ff8588acf797607a5"
+  "apiKey": "AIzaSyBXAXB3On3WwWPwvbb7TkyR892pR2nDkko",
+  "authDomain": "test-manga-keeper.firebaseapp.com",
+  "projectId": "ten-project-cua-ban",
+  "storageBucket": "test-manga-keeper",
+  "messagingSenderId": "1082600273984",
+  "appId": "1:1082600273984:web:2f247ff8588acf797607a5"
 }
