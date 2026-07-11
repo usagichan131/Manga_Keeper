@@ -83,7 +83,10 @@ export default function App() {
   };
 
   const handleCreateSeries = async (newSeriesData: Omit<Series, "id" | "userId" | "createdAt">) => {
-    if (!userId) return;
+    if (!userId) {
+      alert("Bạn cần đăng nhập để thực hiện chức năng này.");
+      return;
+    }
     try {
       const created = await addSeries({
         ...newSeriesData,
@@ -93,8 +96,9 @@ export default function App() {
       loadAllData(userId);
       // Automatically open dashboard for the newly created series
       setActiveSeries(created);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert("Không thể lưu bộ truyện. Hãy kiểm tra lại kết nối mạng hoặc thử tải lại trang. Lỗi: " + err.message);
     }
   };
 
