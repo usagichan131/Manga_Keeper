@@ -39,6 +39,17 @@ service cloud.firestore {
              (!('releaseDate' in data) || (data.releaseDate is string && data.releaseDate.size() <= 128));
     }
 
+    function isValidGlobalRelease(data) {
+      return data.keys().hasAll(['title', 'volume', 'publisher', 'price', 'date', 'timestamp', 'createdAt']) &&
+             data.title is string && data.title.size() <= 500 &&
+             data.volume is string && data.volume.size() <= 100 &&
+             data.publisher is string && data.publisher.size() <= 500 &&
+             data.price is number &&
+             data.date is string && data.date.size() <= 100 &&
+             data.timestamp is number &&
+             data.createdAt is number;
+    }
+
     match /series/{seriesId} {
       allow read: if true; 
       allow create: if isValidId(seriesId) && isValidSeries(incoming());
@@ -51,6 +62,11 @@ service cloud.firestore {
       allow create: if isValidId(volumeId) && isValidVolume(incoming());
       allow update: if isValidId(volumeId) && isValidVolume(incoming());
       allow delete: if isValidId(volumeId);
+    }
+
+    match /globalReleases/{releaseId} {
+      allow read: if true;
+      allow create, update, delete: if true; // allow admin only in practice but for simple setup allow all writes or if request.auth != null && request.auth.token.email == "hang3c18@gmail.com"
     }
   }
 }

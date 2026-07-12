@@ -8,7 +8,9 @@ import { getOrCreateUserId, getSeriesList, addSeries, getVolumes, deleteSeries }
 import AddSeriesModal from "./components/AddSeriesModal";
 import SeriesDashboard from "./components/SeriesDashboard";
 import UpcomingReleases from "./components/UpcomingReleases";
-import { isFirebasePlaceholder } from "./firebase";
+import AdminDashboard from "./components/AdminDashboard";
+import { isFirebasePlaceholder, auth, googleProvider } from "./firebase";
+import { signInWithPopup, onAuthStateChanged } from "firebase/auth";
 
 export default function App() {
   const [userId, setUserId] = useState("");
@@ -20,9 +22,11 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   
-  // Modals / Detail active states
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeSeries, setActiveSeries] = useState<Series | null>(null);
+  
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Bulk delete states
   const [selectedSeriesIds, setSelectedSeriesIds] = useState<string[]>([]);
@@ -40,7 +44,36 @@ export default function App() {
     const id = getOrCreateUserId();
     setUserId(id);
     loadAllData(id);
+
+    if (auth) {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user && user.email === "hang3c18@gmail.com") {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+          setShowAdminDashboard(false);
+        }
+      });
+      return () => unsubscribe();
+    }
   }, []);
+
+  const handleAdminLogin = async () => {
+    if (isAdmin) {
+      setShowAdminDashboard(true);
+      return;
+    }
+    try {
+      if (auth && googleProvider) {
+        await signInWithPopup(auth, googleProvider);
+      } else {
+        alert("Tính năng Admin chưa được cấu hình Firebase Auth.");
+      }
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      alert("Đăng nhập thất bại: " + error.message);
+    }
+  };
 
   const loadAllData = async (uid: string) => {
     setLoading(true);
@@ -188,7 +221,8 @@ export default function App() {
           >
             Đóng
           </button>
-        </div>
+          {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
       )}
       
       {/* Upper Floating Bento Navigation Bar */}
@@ -200,14 +234,17 @@ export default function App() {
             <div className="w-11 h-11 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-tr from-indigo-700 to-indigo-400 opacity-80" />
               <BookMarked className="w-6 h-6 relative z-10 group-hover:scale-110 transition-transform duration-300" />
-            </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
             <div>
               <h1 className="text-lg font-extrabold tracking-tight text-white flex items-center gap-1.5">
                 MangaKeeper
               </h1>
               <p className="text-[11px] text-slate-400 font-medium">Sổ tay thông minh cho người sưu tầm truyện tranh</p>
-            </div>
-          </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+            {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
           {/* Quick Global Stats & Action buttons */}
           <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap w-full sm:w-auto justify-between sm:justify-end">
@@ -217,16 +254,20 @@ export default function App() {
               <div className="py-1 px-3 bg-slate-900/45 rounded-xl border border-white/5 flex items-center gap-1.5 shadow-sm">
                 <span className="text-slate-500 font-medium text-[11px]">Tổng bộ:</span>
                 <span className="font-bold text-indigo-400 font-mono text-xs">{seriesList.length}</span>
-              </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
               <div className="py-1 px-3 bg-slate-900/45 rounded-xl border border-white/5 flex items-center gap-1.5 shadow-sm">
                 <span className="text-slate-500 font-medium text-[11px]">Tập đã có:</span>
                 <span className="font-bold text-slate-200 font-mono text-xs">{totalOwnedVolumes}</span>
-              </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
               <div className="py-1 px-3 bg-slate-900/45 rounded-xl border border-white/5 flex items-center gap-1.5 shadow-sm">
                 <span className="text-slate-500 font-medium text-[11px]">Chi tiêu:</span>
                 <span className="font-bold text-emerald-400 font-mono text-xs">{formatVND(totalMoneySpent)}</span>
-              </div>
-            </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
             <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
               <button
@@ -236,6 +277,15 @@ export default function App() {
               >
                 <LogOut className="w-4 h-4 text-slate-400" />
                 <span className="hidden sm:inline">Đăng xuất</span>
+              </button>
+
+              <button
+                onClick={handleAdminLogin}
+                className={`py-2 px-3.5 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800/80 rounded-xl text-xs font-semibold ${isAdmin ? "text-indigo-400 border-indigo-500/30" : "text-slate-300"} hover:text-white transition-all duration-200 flex items-center gap-1.5 shadow-md`}
+                title="Quản trị viên"
+              >
+                {isAdmin ? <Check className="w-4 h-4" /> : <Key className="w-4 h-4 text-slate-400" />}
+                <span className="hidden sm:inline">Admin</span>
               </button>
 
               <button
@@ -254,18 +304,21 @@ export default function App() {
                 <Plus className="w-4.5 h-4.5" />
                 Thêm bộ mới
               </button>
-            </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
-          </div>
+            {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
-        </div>
+          {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
       </header>
 
       {/* Main Container Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-6 items-start">
         
         {/* Left Column / Widget Sidebar */}
-        <section className="w-full lg:w-[330px] flex-shrink-0 space-y-6">
+        <section className="w-full lg:w-[330px] flex-shrink-0 flex flex-col gap-6 lg:sticky lg:top-6 lg:h-[calc(100vh-48px)]">
           
           {/* Settings / Cloud Synchronization Box */}
           {showSettings && (
@@ -281,7 +334,8 @@ export default function App() {
                 >
                   Đóng
                 </button>
-              </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
               <div className="text-[11px] text-slate-400 space-y-2.5 leading-relaxed">
                 <p>
@@ -290,7 +344,8 @@ export default function App() {
                 <p>
                   Để truy cập dữ liệu của bạn trên các thiết bị khác (điện thoại, máy tính bảng...), hãy copy và dán <strong className="text-indigo-400 font-semibold">Mã đồng bộ</strong> bên dưới.
                 </p>
-              </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
               {/* Your Code Copy Box */}
               <div className="bg-slate-950/80 p-3 rounded-2xl border border-slate-900 flex flex-col gap-2 shadow-inner">
@@ -304,8 +359,10 @@ export default function App() {
                   >
                     {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
-                </div>
-              </div>
+                  {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
               {/* Restore / Import Sync Code Box */}
               <div className="space-y-2.5 pt-3.5 border-t border-slate-800/60">
@@ -324,22 +381,28 @@ export default function App() {
                   >
                     Kết nối
                   </button>
-                </div>
+                  {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
                 {syncSuccessMsg && (
                   <p className="text-emerald-400 text-[11px] text-center font-semibold mt-1">
                     {syncSuccessMsg}
                   </p>
                 )}
-              </div>
-            </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
           )}
 
           {/* Core Release Calendar widget */}
-          <UpcomingReleases 
-            userId={userId} 
-            seriesList={seriesList} 
-            onRefreshStats={() => loadAllData(userId)} 
-          />
+          <div className="flex-1 min-h-0 flex flex-col mb-6 lg:mb-0">
+            <UpcomingReleases 
+              userId={userId} 
+              seriesList={seriesList} 
+              onRefreshStats={() => loadAllData(userId)} 
+            />
+            {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
 
 
@@ -358,7 +421,8 @@ export default function App() {
                   Hộp công cụ sưu tầm
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">Tìm kiếm bộ truyện, phân loại trạng thái mua nhanh chóng.</p>
-              </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
               {/* Status statistics indicator pills */}
               <div className="flex gap-2 text-[10px] font-bold self-stretch sm:self-auto justify-end">
@@ -368,8 +432,10 @@ export default function App() {
                 <span className="bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-xl border border-emerald-500/20 shadow-sm">
                   Đã xong: {seriesList.filter(s => s.status === 'completed').length}
                 </span>
-              </div>
-            </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
             {/* Inputs controls */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -384,7 +450,8 @@ export default function App() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full bg-slate-950/80 border border-slate-850 rounded-2xl py-3 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all shadow-inner"
                 />
-              </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
               {/* Filter selection */}
               <div className="relative">
@@ -401,29 +468,36 @@ export default function App() {
                   <option value="dropped">Đã drop (Không mua nữa)</option>
                 </select>
                 <div className="absolute right-3 top-4 w-1.5 h-1.5 border-r border-b border-slate-400 transform rotate-45 pointer-events-none" />
-              </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
-            </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
-          </div>
+            {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
           {/* Total Overview Stats Panel (Mobile view friendly) */}
           <div className="grid grid-cols-3 gap-3 md:hidden">
             <div className="bento-card bg-slate-900/50 border border-slate-800/80 p-3.5 rounded-2xl text-center">
               <span className="text-[9px] text-slate-500 uppercase font-extrabold tracking-wider block font-mono">Tổng bộ</span>
               <span className="text-base font-extrabold text-indigo-400 mt-1 block">{seriesList.length}</span>
-            </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
             <div className="bento-card bg-slate-900/50 border border-slate-800/80 p-3.5 rounded-2xl text-center">
               <span className="text-[9px] text-slate-500 uppercase font-extrabold tracking-wider block font-mono">Đã có</span>
               <span className="text-base font-extrabold text-slate-100 mt-1 block">{totalOwnedVolumes} tập</span>
-            </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
             <div className="bento-card bg-slate-900/50 border border-slate-800/80 p-3.5 rounded-2xl text-center">
               <span className="text-[9px] text-slate-500 uppercase font-extrabold tracking-wider block font-mono">Chi tiêu</span>
               <span className="text-[11px] font-extrabold text-emerald-400 mt-1.5 block truncate">
                 {Math.round(totalMoneySpent / 1000)}k đ
               </span>
-            </div>
-          </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+            {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
           {/* Series Feed Header */}
           <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
@@ -445,20 +519,24 @@ export default function App() {
               )}
               {loading && <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin" />}
               <span className="text-xs text-slate-500 font-medium hidden sm:inline-block">Mới nhất xếp trên</span>
-            </div>
-          </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+            {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
           {/* Main Feed Series Cards Grid */}
           {loading && seriesList.length === 0 ? (
             <div className="text-center py-24 text-slate-400">
               <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin mx-auto mb-3" />
               <p className="text-sm font-semibold">Đang tải tủ truyện của bạn từ đám mây...</p>
-            </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
           ) : filteredSeries.length === 0 ? (
             <div className="text-center py-20 bg-slate-900/25 border-2 border-dashed border-slate-800/80 rounded-3xl space-y-4">
               <div className="w-16 h-16 rounded-full bg-slate-950 border border-slate-800/85 flex items-center justify-center mx-auto text-slate-500 shadow-inner">
                 <BookMarked className="w-7 h-7 text-slate-600" />
-              </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
               <div className="space-y-1.5">
                 <h4 className="font-bold text-slate-300 text-sm">Tủ truyện trống rỗng</h4>
                 <p className="text-xs text-slate-500 max-w-[340px] mx-auto leading-relaxed">
@@ -466,7 +544,8 @@ export default function App() {
                     ? "Không tìm thấy bộ truyện nào phù hợp với bộ lọc tìm kiếm hiện tại." 
                     : "Bạn chưa đăng ký bộ truyện tranh nào cả. Bấm nút 'Thêm bộ mới' ở trên để khởi tạo bộ đầu tiên."}
                 </p>
-              </div>
+                {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
               {!(searchTerm || statusFilter !== "all") && (
                 <button
                   onClick={() => setShowAddModal(true)}
@@ -475,7 +554,8 @@ export default function App() {
                   Bắt đầu thêm ngay
                 </button>
               )}
-            </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredSeries.map((series) => {
@@ -503,8 +583,10 @@ export default function App() {
                         >
                           <div className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${selectedSeriesIds.includes(series.id) ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-slate-900/60 border-slate-700/80 text-transparent opacity-0 group-hover:opacity-100 hover:bg-slate-800/80 hover:border-slate-600'}`}>
                             <Check className="w-4 h-4" />
-                          </div>
-                        </div>
+                            {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+                          {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
                         {series.coverUrl ? (
                           <img 
@@ -516,7 +598,8 @@ export default function App() {
                           <div className="w-full h-full flex flex-col items-center justify-center text-slate-700 gap-1.5 bg-slate-950 shadow-inner">
                             <BookOpen className="w-8 h-8 text-slate-800" />
                             <span className="text-[11px] font-medium font-sans">Chưa có ảnh bìa</span>
-                          </div>
+                            {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
                         )}
                         
                         {/* Status absolute badge */}
@@ -524,8 +607,10 @@ export default function App() {
                           <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold border backdrop-blur-md bg-slate-900/80 shadow-md tracking-wide ${statusColors[series.status]}`}>
                             {series.status === 'ongoing' ? 'Đang mua' : series.status === 'completed' ? 'Hoàn thành' : series.status === 'on_hold' ? 'Tạm dừng' : 'Đã drop'}
                           </span>
-                        </div>
-                      </div>
+                          {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+                        {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
                       {/* Info and content */}
                       <div className="p-5 space-y-3">
@@ -534,7 +619,8 @@ export default function App() {
                             {series.name}
                           </h4>
                           <p className="text-[11px] text-slate-400 font-medium truncate">Tác giả: <span className="text-slate-300">{series.author || "Chưa rõ"}</span></p>
-                        </div>
+                          {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
                         {/* Visual owned ratio bar info */}
                         <div className="space-y-1.5 pt-2 border-t border-slate-800/60">
@@ -543,7 +629,8 @@ export default function App() {
                             <span className="font-bold text-slate-200">
                               {seriesOwnedCount} {series.totalVolumes ? `/ ${series.totalVolumes}` : ""} tập
                             </span>
-                          </div>
+                            {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
                           
                           {/* Progress slider bar */}
                           {series.totalVolumes ? (
@@ -552,24 +639,31 @@ export default function App() {
                                 className="bg-gradient-to-r from-indigo-600 to-indigo-400 h-full rounded-full transition-all duration-500"
                                 style={{ width: `${Math.min(100, (seriesOwnedCount / series.totalVolumes) * 100)}%` }}
                               />
-                            </div>
+                              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
                           ) : (
                             <p className="text-[10px] text-slate-500 italic font-mono">Manga chưa giới hạn tập</p>
                           )}
-                        </div>
-                      </div>
-                    </div>
+                          {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+                        {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+                      {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
                     {/* Footer: Price Info spent */}
                     <div className="px-5 py-3 bg-slate-950/45 border-t border-white/5 flex justify-between items-center text-xs">
                       <span className="text-slate-500 font-medium">Chi tiêu bộ này:</span>
                       <span className="font-extrabold text-emerald-400 font-mono text-[13px]">{formatVND(totalSpentOnThis)}</span>
-                    </div>
+                      {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
 
-                  </div>
+                    {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
                 );
               })}
-            </div>
+              {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
           )}
 
         </section>
@@ -586,8 +680,10 @@ export default function App() {
             <a href="#" className="hover:text-indigo-400 transition-colors">Điều khoản</a>
             <span className="text-slate-800">|</span>
             <a href="#" className="hover:text-indigo-400 transition-colors">Bảo mật</a>
-          </div>
-        </div>
+            {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
+          {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
+    </div>
       </footer>
 
       {/* MODAL: Add New Comic Series */}
@@ -621,6 +717,7 @@ export default function App() {
         />
       )}
 
+      {showAdminDashboard && isAdmin && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
     </div>
   );
 }

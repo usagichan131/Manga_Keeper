@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Calendar, AlertCircle, CheckCircle2, ChevronRight, DollarSign, Bell } from "lucide-react";
 import { Volume, Series } from "../types";
 import { saveVolume, getVolumes } from "../lib/db";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { db } from "../firebase";
 
 interface UpcomingReleasesProps {
   userId: string;
@@ -12,6 +14,8 @@ interface UpcomingReleasesProps {
 interface VolumeWithSeries extends Volume {
   seriesName: string;
   seriesCover?: string;
+  isGlobal?: boolean;
+  publisher?: string;
 }
 
 export default function UpcomingReleases({ userId, seriesList, onRefreshStats }: UpcomingReleasesProps) {
@@ -24,35 +28,73 @@ export default function UpcomingReleases({ userId, seriesList, onRefreshStats }:
   }, [seriesList]);
 
   const fetchUpcomingVolumes = async () => {
-    if (seriesList.length === 0) {
-      setUpcomingVolumes([]);
-      return;
-    }
-    
     setLoading(true);
     try {
-      // Get all volumes for each of our user's series
-      const allVolumesPromises = seriesList.map(series => getVolumes(series.id));
-      const allVolumesResults = await Promise.all(allVolumesPromises);
-      const allVolumes = allVolumesResults.flat();
+      let enriched: VolumeWithSeries[] = [];
       
-      // Filter only those belonging to wishlist and with a valid releaseDate
-      const userWishlist = allVolumes.filter(v => v.status === "wishlist" && v.releaseDate);
-      
-      // Match series names
-      const enriched: VolumeWithSeries[] = userWishlist.map(v => {
-        const matchingSeries = seriesList.find(s => s.id === v.seriesId);
-        return {
-          ...v,
-          seriesName: matchingSeries?.name || "Bộ truyện ẩn",
-          seriesCover: matchingSeries?.coverUrl
-        };
-      });
-      
+      if (seriesList.length > 0) {
+        // Get all volumes for each of our user's series
+        const allVolumesPromises = seriesList.map(series => getVolumes(series.id));
+        const allVolumesResults = await Promise.all(allVolumesPromises);
+        const allVolumes = allVolumesResults.flat();
+        
+        // Filter only those belonging to wishlist and with a valid releaseDate
+        const userWishlist = allVolumes.filter(v => v.status === "wishlist" && v.releaseDate);
+        
+        // Match series names
+        const userEnriched: VolumeWithSeries[] = userWishlist.map(v => {
+          const matchingSeries = seriesList.find(s => s.id === v.seriesId);
+          return {
+            ...v,
+            seriesName: matchingSeries?.name || "Bộ truyện ẩn",
+            seriesCover: matchingSeries?.coverUrl
+          };
+        });
+        enriched = [...userEnriched];
+      }
+
+      // Fetch global releases
+      if (db) {
+        const globalRef = collection(db, "globalReleases");
+        const globalSnap = await getDocs(globalRef);
+        const globalReleases: VolumeWithSeries[] = globalSnap.docs.map(doc => {
+          const data = doc.data();
+          
+          let releaseDate = "";
+          if (data.date) {
+            const parts = data.date.split('/');
+            if (parts.length >= 2) {
+              const year = parts.length === 3 ? parts[2] : new Date().getFullYear();
+              const month = parts[1].padStart(2, '0');
+              const day = parts[0].padStart(2, '0');
+              releaseDate = `${year}-${month}-${day}`;
+            } else {
+              releaseDate = data.date;
+            }
+          }
+
+          return {
+            id: doc.id,
+            seriesId: "global",
+            volumeNumber: data.volume || "",
+            status: "wishlist",
+            price: data.price || 0,
+            releaseDate: releaseDate,
+            seriesName: data.title || "Unknown",
+            isGlobal: true,
+            publisher: data.publisher,
+            createdAt: data.createdAt || Date.now(),
+          } as VolumeWithSeries;
+        });
+        enriched = [...enriched, ...globalReleases];
+      }
+
       // Sort chronologically by releaseDate
       enriched.sort((a, b) => {
-        const dateA = new Date(a.releaseDate!).getTime();
-        const dateB = new Date(b.releaseDate!).getTime();
+        if (!a.releaseDate) return 1;
+        if (!b.releaseDate) return -1;
+        const dateA = new Date(a.releaseDate).getTime();
+        const dateB = new Date(b.releaseDate).getTime();
         return dateA - dateB;
       });
       
@@ -131,10 +173,10 @@ export default function UpcomingReleases({ userId, seriesList, onRefreshStats }:
   };
 
   return (
-    <div className="bento-card p-5 bg-slate-900/40 border border-slate-800/80 rounded-3xl flex flex-col h-full shadow-lg bento-glow-indigo">
+    <div className="bento-card p-5 bg-slate-900/40 border border-slate-800/80 rounded-3xl flex flex-col flex-1 shadow-lg bento-glow-indigo min-h-0">
       
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800/60 pb-3.5 mb-4">
+      <div className="flex items-center justify-between border-b border-slate-800/60 pb-3.5 mb-4 shrink-0">
         <h3 className="font-bold text-slate-100 text-xs sm:text-sm flex items-center gap-2">
           <Bell className="w-4 h-4 text-amber-400" />
           Lịch phát hành & Nhắc mua
@@ -179,7 +221,7 @@ export default function UpcomingReleases({ userId, seriesList, onRefreshStats }:
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[350px] custom-scrollbar">
+      <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
         {loading ? (
           <div className="text-center py-8 text-slate-500 text-xs font-medium">Đang tải lịch phát hành...</div>
         ) : filteredList.length === 0 ? (
@@ -225,19 +267,22 @@ export default function UpcomingReleases({ userId, seriesList, onRefreshStats }:
                   <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${
                     isToday 
                       ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse' 
+                      : vol.isGlobal ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
                       : 'bg-slate-900 text-slate-400 border-white/5'
                   }`}>
-                    {label}
+                    {vol.isGlobal ? vol.publisher || "Chung" : label}
                   </span>
                   
-                  <button
-                    onClick={() => markAsOwnedDirectly(vol)}
-                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200 bg-indigo-600 hover:bg-indigo-500 text-white p-1 px-2 rounded-lg text-[10px] font-bold flex items-center gap-0.5 cursor-pointer shadow-sm border border-indigo-500/20"
-                    title="Đánh dấu đã mua"
-                  >
-                    <CheckCircle2 className="w-3 h-3" />
-                    Đã mua
-                  </button>
+                  {!vol.isGlobal && (
+                    <button
+                      onClick={() => markAsOwnedDirectly(vol)}
+                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200 bg-indigo-600 hover:bg-indigo-500 text-white p-1 px-2 rounded-lg text-[10px] font-bold flex items-center gap-0.5 cursor-pointer shadow-sm border border-indigo-500/20"
+                      title="Đánh dấu đã mua"
+                    >
+                      <CheckCircle2 className="w-3 h-3" />
+                      Đã mua
+                    </button>
+                  )}
                 </div>
               </div>
             );
